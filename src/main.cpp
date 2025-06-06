@@ -6,12 +6,13 @@
 #include <iostream>
 #include <string>
 #include <fmt/core.h>
+#include <boost/beast/websocket/ssl.hpp>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
 namespace net = boost::asio;
 namespace ssl = net::ssl;
-using tcp_socket = net::ip::tcp::socket; // <-- THIS IS THE FIX
+using tcp_socket = net::ip::tcp::socket;
 
 int main() {
     fmt::print("hi\n");
