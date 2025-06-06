@@ -1,2 +1,6 @@
-ignore.txt
-/build
+/build/
+*.o
+*.obj
+*.exe
+*.log
+.vscode/
