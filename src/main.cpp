@@ -1,59 +1,53 @@
-#include <websocketpp/config/asio_client.hpp>
-#include <websocketpp/client.hpp>
-
-#include <boost/asio/ssl/context.hpp>
-
+#include <boost/beast/core.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <iostream>
-#include <functional>
+#include <string>
+#include <fmt/core.h>
 
-typedef websocketpp::client<websocketpp::config::asio_tls_client> client;
-
-void on_message(client* c, websocketpp::connection_hdl, client::message_ptr msg) {
-    std::cout << msg->get_payload() << std::endl;
-}
-
-void on_open(client*, websocketpp::connection_hdl) {
-    std::cout << "Connected" << std::endl;
-}
-
-void on_fail(client*, websocketpp::connection_hdl) {
-    std::cout << "Connection Failed" << std::endl;
-}
-
-void on_close(client*, websocketpp::connection_hdl) {
-    std::cout << "Connection Closed" << std::endl;
-}
+namespace beast = boost::beast;
+namespace websocket = beast::websocket;
+namespace net = boost::asio;
+namespace ssl = net::ssl;
+using tcp_socket = net::ip::tcp::socket; // <-- THIS IS THE FIX
 
 int main() {
-    client c;
+    fmt::print("hi\n");
 
     try {
-        c.set_access_channels(websocketpp::log::alevel::all);
-        c.set_error_channels(websocketpp::log::elevel::all);
+        const std::string host = "stream.binance.com";
+        const std::string port = "9443";
+        const std::string target = "/ws/btcusdt@trade";
 
-        c.init_asio();
+        net::io_context ioc;
+        ssl::context ctx(ssl::context::tlsv12_client);
+        ctx.set_default_verify_paths();
 
-        c.set_message_handler(std::bind(&on_message, &c, std::placeholders::_1, std::placeholders::_2));
-        c.set_open_handler(std::bind(&on_open, &c, std::placeholders::_1));
-        c.set_fail_handler(std::bind(&on_fail, &c, std::placeholders::_1));
-        c.set_close_handler(std::bind(&on_close, &c, std::placeholders::_1));
-        c.set_tls_init_handler([](websocketpp::connection_hdl){
-            auto ctx = std::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv12_client);
-            ctx->set_default_verify_paths();
-            ctx->set_verify_mode(boost::asio::ssl::verify_none);
-            return ctx;
-        });
+        net::ip::tcp::resolver resolver(ioc);
+        websocket::stream<ssl::stream<tcp_socket>> ws(ioc, ctx);
 
-        websocketpp::lib::error_code ec;
-        auto con = c.get_connection("wss://stream.binance.com:9443/ws/btcusdt@trade", ec);
-        if (ec) {
-            std::cout << "Connection init error: " << ec.message() << std::endl;
-            return 1;
+        auto const results = resolver.resolve(host, port);
+        net::connect(ws.next_layer().next_layer(), results.begin(), results.end());
+        ws.next_layer().handshake(ssl::stream_base::client);
+
+        if(!SSL_set_tlsext_host_name(ws.next_layer().native_handle(), host.c_str())) {
+            beast::error_code ec{static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()};
+            throw beast::system_error{ec};
         }
 
-        c.connect(con);
-        c.run();
-    } catch(const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        ws.handshake(host, target);
+
+        std::cout << "Connected to Binance BTCUSDT trade stream. Printing messages:\n";
+        for (;;) {
+            beast::flat_buffer buffer;
+            ws.read(buffer);
+            std::cout << beast::make_printable(buffer.data()) << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
     }
+    return 0;
 }
