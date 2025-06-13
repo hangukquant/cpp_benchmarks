@@ -29,3 +29,13 @@ After building, run the produced binary from the build directory:
 ```
 
 The program connects to Binance's WebSocket trade stream and prints messages.
+
+## Header-only example
+
+The `get_mids` target demonstrates using the header-only [cpp-httplib](https://github.com/yhirose/cpp-httplib)
+library. It performs a simple HTTP GET request to Binance's `midPrice` endpoint.
+Build and run it from the build directory:
+
+```bash
+./build/get_mids
+```

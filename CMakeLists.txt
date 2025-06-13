@@ -17,3 +17,7 @@ target_link_libraries(main PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
 )
+
+# Example using header-only cpp-httplib
+add_executable(get_mids src/get_mids.cpp)
+target_include_directories(get_mids PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
