@@ -4,7 +4,7 @@
 
 int main() {
     httplib::Client cli("https://api.binance.com");
-    auto res = cli.Get("/api/v3/midPrice");
+    auto res = cli.Get("/api/v3/exchangeInfo");
     if (res) {
         std::cout << res->status << "\n" << res->body << std::endl;
     } else {
